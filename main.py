@@ -3,7 +3,6 @@ import cv2
 import time
 import base64
 import logging
-import requests
 import threading
 import screeninfo
 import tkinter as tk
@@ -22,7 +21,9 @@ from datetime import datetime, timezone, timedelta
 from imutils.video import VideoStream, WebcamVideoStream
 
 # type annotations.
-from typing import Optional
+from typing import Optional, Dict, Union, Tuple
+
+from src.storage.api import StorageApi
 
 
 def camera_resize(cv2_image, width, height):
@@ -50,22 +51,22 @@ class NimanWebcam:
         image_quality_range: range = range(35, 100)
 
     def __init__(
-        self,
-        tk_app: Optional[tk.Tk] = None,
-        title: str = "application",
-        use_relative_path: bool = True,
-        api_enabled: bool = False,
-        api_endpoint: str = "https://niman.api",
-        api_request_timeout: int = 5,
-        api_retry_max_attempts: int = 10,
-        api_retry_delay_seconds: int = 2,
-        images_dir: str = "images",
-        image_quality: int = 65,
-        image_optimize: bool = True,
-        camera_delay_seconds: int = 1,
-        log_file: str = "niman_camera.log",
-        log_level: str = "info",
-        log_enable_fault_handler: bool = False,
+            self,
+            tk_app: Optional[tk.Tk] = None,
+            title: str = "application",
+            use_relative_path: bool = True,
+            api_enabled: bool = False,
+            api_endpoint: str = "https://niman.api",
+            api_request_timeout: int = 5,
+            api_retry_max_attempts: int = 10,
+            api_retry_delay_seconds: int = 2,
+            images_dir: str = "images",
+            image_quality: int = 65,
+            image_optimize: bool = True,
+            camera_delay_seconds: int = 1,
+            log_file: str = "niman_camera.log",
+            log_level: str = "info",
+            log_enable_fault_handler: bool = False,
     ):
         self.parent_dir = path.abspath(path.dirname(__file__))
         if use_relative_path:
@@ -102,6 +103,20 @@ class NimanWebcam:
 
         logging.debug(
             f"INIT:PACKAGES:AVIF: AVIF plugin version is {pillow_avif.__version__}"
+        )
+
+        # set storage options.
+        self.storage: Dict[str, Tuple[bool, Union[StorageApi]]] = dict(
+            api=(
+                api_enabled,
+                StorageApi(
+                    api_endpoint,
+                    "",
+                    api_request_timeout,
+                    api_retry_max_attempts,
+                    api_retry_delay_seconds,
+                ),
+            )
         )
 
         # set API endpoint.
@@ -238,6 +253,7 @@ class NimanWebcam:
         )
 
     def _camera_capture(self, _) -> None:
+        print("cap")
         self.camera_capture_flag = True
 
     def camera_play(self) -> None:
@@ -247,13 +263,14 @@ class NimanWebcam:
         frame = cv2.flip(frame, 1)
 
         if self.camera_capture_flag:
+            print("in cap")
             timestamp: datetime = datetime.now(timezone.utc)
 
             # rate limiting the camera capture based of minimum delay between
             # two consecutive captures to avoid bursts of images for the same person.
             if (
-                self.camera_capture_minimum_delay_in_seconds
-                < (timestamp - self.camera_capture_timestamp).seconds
+                    self.camera_capture_minimum_delay_in_seconds
+                    < (timestamp - self.camera_capture_timestamp).seconds
             ):
                 self.camera_capture_timestamp = timestamp
                 filename: str = (
@@ -263,7 +280,7 @@ class NimanWebcam:
                 image = Image.fromarray(frame)
 
                 with open(
-                    os.path.join(self.images_dir, filename), "wb+"
+                        os.path.join(self.images_dir, filename), "wb+"
                 ) as output:
                     image.save(
                         output,
@@ -275,11 +292,12 @@ class NimanWebcam:
                 if self.api_enabled:
                     # upload photo to api from another thread
                     # to prevent stalling current program.
+                    serialized_image = self._camera_process_image(image)
                     threading.Thread(
-                        target=self._camera_process_and_upload,
+                        target=self.storage["api"][1].upload,
                         args=(
                             filename,
-                            image,
+                            serialized_image,
                         ),
                         daemon=True,
                     ).start()
@@ -299,9 +317,7 @@ class NimanWebcam:
         self.label_camera.configure(image=img_tk)
         self.label_camera.after(1, self.camera_play)
 
-    def _camera_process_and_upload(self, name, image) -> None:
-        logging.info(f"API:UPLOAD:{name}: uploading camera image:")
-
+    def _camera_process_image(self, image) -> str:
         # process image binary and serialize it as base 85 string.
         with BytesIO() as base85_file:
             image.save(
@@ -314,48 +330,7 @@ class NimanWebcam:
                 "utf-8"
             )
 
-        headers = {"access_token": "ACCESS_TOKEN"}
-
-        flag_successful_upload: bool = False
-
-        # upload image with retry mechanism.
-        for attempt in range(1, self.api_retry_max_attempts):
-            logging.debug(f"API:UPLOAD:{name}: trying attempt: {attempt}")
-            try:
-                response: requests.Response = requests.post(
-                    f"{self.api_endpoint}/upload",
-                    headers=headers,
-                    json={"name": name, "data": image_base85},
-                    timeout=self.api_request_timeout,
-                )
-                response.raise_for_status()
-            except requests.exceptions.HTTPError:
-                logging.warning(
-                    f"API:UPLOAD:{name}: uploading camera image http error"
-                )
-                time.sleep(self.api_retry_delay_seconds)
-            except requests.exceptions.ConnectionError:
-                logging.warning(
-                    f"API:UPLOAD:{name}: uploading camera image connection error"
-                )
-                time.sleep(self.api_retry_delay_seconds)
-            except requests.exceptions.Timeout:
-                logging.warning(
-                    f"API:UPLOAD:{name}: uploading camera image timout error"
-                )
-                time.sleep(self.api_retry_delay_seconds)
-            except requests.exceptions.RequestException:
-                logging.warning(
-                    f"API:UPLOAD:{name}: uploading camera image error"
-                )
-                time.sleep(self.api_retry_delay_seconds)
-            else:
-                logging.info(f"API:UPLOAD:{name}: upload successful")
-                flag_successful_upload = True
-                break
-
-        if not flag_successful_upload:
-            logging.error(f"API:UPLOAD:{name}: upload failed")
+        return image_base85
 
     def start(self):
         self.camera_play()
@@ -365,6 +340,7 @@ class NimanWebcam:
 app = NimanWebcam(
     title="Niman Webcam",
     use_relative_path=True,
+    api_enabled=True,
     log_level="debug",
     log_enable_fault_handler=False,
     camera_delay_seconds=1,
