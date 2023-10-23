@@ -3,8 +3,8 @@ import cv2
 import time
 import base64
 import logging
-import threading
 import requests
+import threading
 import screeninfo
 import tkinter as tk
 
