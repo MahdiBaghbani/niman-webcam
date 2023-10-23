@@ -32,11 +32,22 @@ def camera_resize(cv2_image, width, height):
 
 
 class NimanWebcam:
-    # default values.
-    default_camera_delay: int = 2
-    default_camera_delay_range = range(100)
-    default_image_quality: int = 65
-    default_image_quality_range = range(35, 100)
+    class Program:
+        """Program metadata"""
+
+        name = "Niman Webcam"
+        version = "0.1.0"
+        author = "Mahdi Baghbani"
+        name_version = name + " " + version
+
+    class Default:
+        """Program constants"""
+
+        # default values.
+        camera_delay: int = 2
+        camera_delay_range: range = range(100)
+        image_quality: int = 65
+        image_quality_range: range = range(35, 100)
 
     def __init__(
         self,
@@ -123,7 +134,7 @@ class NimanWebcam:
         self.camera_image_optimize: bool = image_optimize
 
         # internal variable.
-        self._camera_image_quality: int = NimanWebcam.default_image_quality
+        self._camera_image_quality: int = NimanWebcam.Default.image_quality
 
         # camera capture settings.
         self.camera_capture_flag: bool = False
@@ -134,7 +145,7 @@ class NimanWebcam:
 
         # internal variable.
         self._camera_capture_minimum_delay_in_seconds: int = (
-            NimanWebcam.default_camera_delay
+            NimanWebcam.Default.camera_delay
         )
 
         # get camera dimensions.
@@ -210,8 +221,8 @@ class NimanWebcam:
     def camera_capture_minimum_delay_in_seconds(self, seconds):
         self._camera_capture_minimum_delay_in_seconds = (
             seconds
-            if seconds in NimanWebcam.default_camera_delay_range
-            else NimanWebcam.default_camera_delay
+            if seconds in NimanWebcam.Default.camera_delay_range
+            else NimanWebcam.Default.camera_delay
         )
 
     @property
@@ -222,8 +233,8 @@ class NimanWebcam:
     def camera_image_quality(self, quality):
         self._camera_image_quality = (
             quality
-            if quality in NimanWebcam.default_image_quality_range
-            else NimanWebcam.default_image_quality
+            if quality in NimanWebcam.Default.image_quality_range
+            else NimanWebcam.Default.image_quality
         )
 
     def _camera_capture(self, _) -> None:
