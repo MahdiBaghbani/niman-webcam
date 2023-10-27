@@ -51,22 +51,22 @@ class NimanWebcam:
         image_quality_range: range = range(35, 100)
 
     def __init__(
-            self,
-            tk_app: Optional[tk.Tk] = None,
-            title: str = "application",
-            use_relative_path: bool = True,
-            api_enabled: bool = False,
-            api_endpoint: str = "https://niman.api",
-            api_request_timeout: int = 5,
-            api_retry_max_attempts: int = 10,
-            api_retry_delay_seconds: int = 2,
-            images_dir: str = "images",
-            image_quality: int = 65,
-            image_optimize: bool = True,
-            camera_delay_seconds: int = 1,
-            log_file: str = "niman_camera.log",
-            log_level: str = "info",
-            log_enable_fault_handler: bool = False,
+        self,
+        tk_app: Optional[tk.Tk] = None,
+        title: str = "application",
+        use_relative_path: bool = True,
+        api_enabled: bool = False,
+        api_endpoint: str = "https://niman.api",
+        api_request_timeout: int = 5,
+        api_retry_max_attempts: int = 10,
+        api_retry_delay_seconds: int = 2,
+        images_dir: str = "images",
+        image_quality: int = 65,
+        image_optimize: bool = True,
+        camera_delay_seconds: int = 1,
+        log_file: str = "niman_camera.log",
+        log_level: str = "info",
+        log_enable_fault_handler: bool = False,
     ):
         self.parent_dir = path.abspath(path.dirname(__file__))
         if use_relative_path:
@@ -174,9 +174,7 @@ class NimanWebcam:
 
         # construct absolute paths paths.
         self.images_dir: str = (
-            path.join(self.parent_dir, images_dir)
-            if use_relative_path
-            else images_dir
+            path.join(self.parent_dir, images_dir) if use_relative_path else images_dir
         )
         # create directories, if not exists.
         Path(self.images_dir).mkdir(parents=True, exist_ok=True)
@@ -269,19 +267,15 @@ class NimanWebcam:
             # rate limiting the camera capture based of minimum delay between
             # two consecutive captures to avoid bursts of images for the same person.
             if (
-                    self.camera_capture_minimum_delay_in_seconds
-                    < (timestamp - self.camera_capture_timestamp).seconds
+                self.camera_capture_minimum_delay_in_seconds
+                < (timestamp - self.camera_capture_timestamp).seconds
             ):
                 self.camera_capture_timestamp = timestamp
-                filename: str = (
-                    f"{timestamp.strftime('%d-%m-%YT%H-%M-%S')}.avif"
-                )
+                filename: str = f"{timestamp.strftime('%d-%m-%YT%H-%M-%S')}.avif"
 
                 image = Image.fromarray(frame)
 
-                with open(
-                        os.path.join(self.images_dir, filename), "wb+"
-                ) as output:
+                with open(os.path.join(self.images_dir, filename), "wb+") as output:
                     image.save(
                         output,
                         format="avif",
@@ -326,9 +320,7 @@ class NimanWebcam:
                 optimize=self.camera_image_optimize,
                 quality=self.camera_image_quality,
             )
-            image_base85: str = base64.b85encode(base85_file.getvalue()).decode(
-                "utf-8"
-            )
+            image_base85: str = base64.b85encode(base85_file.getvalue()).decode("utf-8")
 
         return image_base85
 

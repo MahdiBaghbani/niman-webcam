@@ -5,21 +5,19 @@ import requests
 
 class StorageApi:
     def __init__(
-            self,
-            endpoint: str,
-            access_token: str,
-            request_timeout: int,
-            retry_max_attempts: int,
-            retry_delay_seconds: int,
+        self,
+        endpoint: str,
+        access_token: str,
+        request_timeout: int,
+        retry_max_attempts: int,
+        retry_delay_seconds: int,
     ):
         self.endpoint: str = endpoint
         self.request_timeout: int = request_timeout
         self.retry_max_attempts: int = retry_max_attempts
         self.retry_delay_seconds: int = retry_delay_seconds
 
-        self.headers = dict(
-            access_token=access_token
-        )
+        self.headers = dict(access_token=access_token)
 
         self.log_module = "STORAGE:API"
 
